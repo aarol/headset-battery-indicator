@@ -23,8 +23,8 @@ jobs:
 
       - name: Build HeadsetControl
         run: |
-          wget https://github.com/Sapd/HeadsetControl/releases/download/3.1.0/headsetcontrol-windows-x86_64.zip
-          unzip headsetcontrol-windows-x86_64.zip headsetcontrol.exe
+            Invoke-WebRequest -Uri "https://github.com/Sapd/HeadsetControl/releases/download/3.1.0/headsetcontrol-windows-x86_64.zip" -OutFile "headsetcontrol-windows-x86_64.zip"
+            Expand-Archive -Path "headsetcontrol-windows-x86_64.zip" -DestinationPath "."
 
       - run: cargo build --release
 
