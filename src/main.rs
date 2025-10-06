@@ -24,7 +24,7 @@ pub fn init_file_logger() -> anyhow::Result<()> {
             let log_file = File::options()
                 .append(true)
                 .create(true)
-                .open(curr_dir.join("arctis-battery-indicator.log"))?;
+                .open(curr_dir.join("headset-battery-indicator.log"))?;
 
             WriteLogger::init(
                 log::LevelFilter::Info,

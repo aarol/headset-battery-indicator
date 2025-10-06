@@ -7,14 +7,14 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'arctis-battery-indicator'",
+      "name": "Debug executable 'headset-battery-indicator'",
       "cargo": {
         "args": [
           "build",
-          "--bin=arctis-battery-indicator-debug",
+          "--bin=headset-battery-indicator-debug",
         ],
         "filter": {
-          "name": "arctis-battery-indicator-debug",
+          "name": "headset-battery-indicator-debug",
           "kind": "bin"
         }
       },

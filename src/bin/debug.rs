@@ -1,4 +1,4 @@
-use arctis_battery_indicator::run;
+use headset_battery_indicator::run;
 use log::error;
 use simplelog::{Config, TermLogger};
 

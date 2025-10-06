@@ -1,17 +1,17 @@
 [package]
-name = "arctis-battery-indicator"
+name = "headset-battery-indicator"
 version = "3.0.0"
 edition = "2024"
 authors = ["Aaro Luomanen"]
-description = "Program that displays a battery icon for the SteelSeries Arctis headset."
+description = "Program that displays a battery icon for wireless headsets."
 license = "MIT"
 homepage = "https://github.com/aarol/"
-default-run = "arctis-battery-indicator-debug"
+default-run = "headset-battery-indicator-debug"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
-name = "arctis-battery-indicator-debug"
+name = "headset-battery-indicator-debug"
 path = "src/bin/debug.rs"
 
 [dependencies]

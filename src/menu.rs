@@ -112,7 +112,7 @@ impl ContextMenu {
             id if id == self.menu_close.id() => event_loop.exit(),
 
             id if id == self.menu_github.id() => {
-                let url = "https://github.com/aarol/arctis-battery-indicator/releases";
+                let url = "https://github.com/aarol/headset-battery-indicator/releases";
 
                 if let Err(e) = std::process::Command::new("explorer").arg(url).spawn() {
                     error!("Failed to open {url}: {e:?}");

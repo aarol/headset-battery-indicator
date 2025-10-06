@@ -7,10 +7,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use log::{error, info};
-use tray_icon::{
-    TrayIcon, TrayIconBuilder,
-    menu::MenuEvent,
-};
+use tray_icon::{TrayIcon, TrayIconBuilder, menu::MenuEvent};
 use winit::{
     application::ApplicationHandler,
     event::{StartCause, WindowEvent},
@@ -66,12 +63,13 @@ impl AppState {
     }
 
     fn update(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-
         let old_device_count = self.devices.len();
         headset_control::query_devices(&mut self.devices)?;
 
         if self.devices.len() != old_device_count {
-            self.context_menu.update_device_menu(&self.devices).context("Updating context menu")?;
+            self.context_menu
+                .update_device_menu(&self.devices)
+                .context("Updating context menu")?;
         }
 
         if self.devices.is_empty() {
@@ -80,7 +78,10 @@ impl AppState {
             return Ok(());
         }
 
-        let device = &self.devices[self.context_menu.selected_device_idx];
+        let device = &self.devices[self
+            .context_menu
+            .selected_device_idx
+            .min(self.devices.len() - 1)];
 
         #[allow(unused_mut)]
         let mut tooltip_text = device.to_string();
