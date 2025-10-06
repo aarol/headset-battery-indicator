@@ -14,14 +14,14 @@ const DETACHED_PROCESS: u32 = 0x00000008;
 
 pub fn query_devices(vec: &mut Vec<Device>) -> anyhow::Result<()> {
     let res = process::Command::new("./headsetcontrol.exe")
-        .args(&["--battery", "--output", "json", "--test-device"]) // example: send some argument like "battery level"
+        .args(&["--battery", "--output", "json"])
         .stdout(Stdio::piped())
         .creation_flags(DETACHED_PROCESS)
         .output()
         .context("Failed to execute headsetcontrol.exe")?;
 
     let response: Output =
-        serde_json::from_slice(&res.stdout).context("Failed to parse JSON from headsetcontrol")?;
+        serde_json::from_slice(&res.stdout).context("Invalid JSON from headsetcontrol")?;
 
     vec.clear();
     for device in response.devices {
@@ -74,8 +74,8 @@ impl Device {
         match self.battery.status {
             BatteryState::BatteryCharging => Some(lang::t(device_charging)),
             BatteryState::BatteryAvailable => None,
+            BatteryState::BatteryUnavailable => Some(lang::t(battery_unavailable)),
             _ => Some(lang::t(device_disconnected)),
-            // TODO: handle other states
         }
     }
 }

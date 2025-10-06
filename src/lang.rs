@@ -14,6 +14,7 @@ pub enum Key {
     quit_program,
     device_charging,
     device_disconnected,
+    battery_unavailable,
     version,
 }
 
@@ -39,16 +40,19 @@ pub fn t(key: Key) -> &'static str {
             quit_program => "Close",
             device_charging => "(Charging)",
             device_disconnected => "(Disconnected)",
+            battery_unavailable => "(Battery unavailable)",
             version => "Version",
         },
         Lang::Fi => match key {
             battery_remaining => "jäljellä",
+            
             no_adapter_found => "Kuulokeadapteria ei löytynyt",
             view_logs => "Näytä lokitiedostot",
             view_updates => "Näytä päivitykset",
             quit_program => "Sulje",
             device_charging => "(Latautuu)",
             device_disconnected => "(Ei yhteyttä)",
+            battery_unavailable => "(Akku ei saatavilla)",
             version => "Versio",
         },
     }
