@@ -14,6 +14,8 @@ Adds a small icon to the "system tray" area of the Windows task bar, which displ
 
   ![Charging icon](docs/icon-charging.png)
 
+Headset Battery Indicator depends on [Sapd/HeadsetControl](https://github.com/Sapd/HeadsetControl), which is licensed under GPL v3.
+
 ## Installation
 
 * Download the [latest release](https://github.com/aarol/headset-battery-indicator/releases/latest) and run the installer
@@ -65,3 +67,10 @@ Since version 3.0.0, the program gets the battery status by using [Sapd/HeadsetC
 I have a post on my website going a bit into reverse-engineering the headset APIs: <https://aarol.dev/posts/arctis-hid>
 
 Reading the [HeadsetControl wiki](https://github.com/Sapd/HeadsetControl/wiki/Development#problems) might be helpful for troubleshooting.
+
+### License
+
+This project is licensed under GNU GPL v3.
+
+You’re free to use, modify, and redistribute it, as long as your version is also licensed under GPL v3, and you include the source code and license when you share it.
+See the [LICENSE](./LICENSE) file for full terms.
