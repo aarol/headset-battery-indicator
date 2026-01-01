@@ -7,7 +7,6 @@ use log::error;
 use simplelog::{ConfigBuilder, WriteLogger};
 
 fn main() {
-    // Cannot really log anything if initializing logging fails
     let _ = init_file_logger();
 
     if let Err(e) = run() {

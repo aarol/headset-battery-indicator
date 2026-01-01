@@ -5,6 +5,7 @@ enum Lang {
     Fi,
     De,
     It,
+    Hu,
 }
 
 #[allow(non_camel_case_types)]
@@ -20,6 +21,7 @@ pub enum Key {
     version,
 }
 
+
 use std::sync::LazyLock;
 
 static LANG: LazyLock<Lang> = LazyLock::new(|| {
@@ -29,6 +31,7 @@ static LANG: LazyLock<Lang> = LazyLock::new(|| {
         "fi" | "fi-FI" => Lang::Fi,
         "de" | "de-DE" | "de-AT" | "de-CH" => Lang::De,
         "it" | "it-IT" | "it-CH" => Lang::It,
+        "hu" | "hu-HU" => Lang::Hu,
         _ => Lang::En,
     }
 });
@@ -79,6 +82,17 @@ pub fn t(key: Key) -> &'static str {
             device_disconnected => "(Disconnesso)",
             battery_unavailable => "(Batteria non disponibile)",
             version => "Versione",
+        },
+        Lang::Hu => match key {
+            battery_remaining => "hátra",
+            no_adapter_found => "Nem található fejhallgató adapter",
+            view_logs => "Naplók megtekintése",
+            view_updates => "Frissítések keresése",
+            quit_program => "Bezárás",
+            device_charging => "(Töltés)",
+            device_disconnected => "(Szétkapcsolva)",
+            battery_unavailable => "(Akkumulátor nem elérhető)",
+            version => "Verzió",
         },
     }
 }

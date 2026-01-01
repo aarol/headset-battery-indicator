@@ -12,14 +12,15 @@ pub struct ContextMenu {
     pub menu: Menu,
     device_menu_items: Vec<(headset_control::Device, CheckMenuItem)>,
     pub selected_device_idx: usize,
-    separators: Option<(PredefinedMenuItem, PredefinedMenuItem)>, // (top, bottom)
+    separators: Option<(PredefinedMenuItem, PredefinedMenuItem)>,
+    menu_overlay_enabled: CheckMenuItem,
     menu_logs: MenuItem,
     menu_github: MenuItem,
     menu_close: MenuItem,
 }
 
 impl ContextMenu {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new(overlay_enabled: bool) -> anyhow::Result<Self> {
         let menu = Menu::new();
 
         menu.append(&MenuItem::new(
@@ -30,11 +31,14 @@ impl ContextMenu {
 
         let device_menu_items = Vec::new();
 
+        let menu_overlay_enabled = CheckMenuItem::new("Overlay", true, overlay_enabled, None);
+
         let menu_logs = MenuItem::new(lang::t(view_logs), true, None);
         let menu_github = MenuItem::new(lang::t(view_updates), true, None);
         let menu_close = MenuItem::new(lang::t(quit_program), true, None);
         let separators = None;
 
+        menu.append(&menu_overlay_enabled)?;
         menu.append_items(&[&menu_logs, &menu_github])?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&menu_close)?;
@@ -44,17 +48,25 @@ impl ContextMenu {
             device_menu_items,
             selected_device_idx: 0,
             separators,
+            menu_overlay_enabled,
             menu_logs,
             menu_github,
             menu_close,
         })
     }
 
+    pub fn is_overlay_toggle(&self, id: &tray_icon::menu::MenuId) -> bool {
+        self.menu_overlay_enabled.id() == id
+    }
+
+    pub fn set_overlay_enabled(&self, enabled: bool) {
+        self.menu_overlay_enabled.set_checked(enabled);
+    }
+
     pub fn update_device_menu(
         &mut self,
         devices: &[headset_control::Device],
     ) -> anyhow::Result<()> {
-        // Remove separators
         if let Some((top, bottom)) = &self.separators {
             self.menu.remove(top).context("Removing top separator")?;
             self.menu
@@ -63,7 +75,6 @@ impl ContextMenu {
             self.separators = None;
         }
 
-        // Remove old device menu items
         for (_, item) in &self.device_menu_items {
             self.menu.remove(item)?;
         }
@@ -78,19 +89,18 @@ impl ContextMenu {
         );
 
         self.device_menu_items.clear();
-        self.menu.insert(&top_separator, 1)?;
+        self.menu.insert(&top_separator, 2)?;
 
         self.selected_device_idx = self.selected_device_idx.min(devices.len() - 1);
 
-        // Add new device menu items
         for (i, device) in devices.iter().enumerate() {
             let is_selected = i == self.selected_device_idx;
             let menu_item = CheckMenuItem::new(device.product.clone(), true, is_selected, None);
-            self.menu.insert(&menu_item, 2 + i as usize)?; // Insert after version item
+            self.menu.insert(&menu_item, 3 + i as usize)?;
             self.device_menu_items.push((device.clone(), menu_item));
         }
 
-        self.menu.insert(&bottom_separator, 2 + devices.len())?;
+        self.menu.insert(&bottom_separator, 3 + devices.len())?;
         self.separators = Some((top_separator, bottom_separator));
 
         Ok(())

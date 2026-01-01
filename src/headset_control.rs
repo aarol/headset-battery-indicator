@@ -9,7 +9,6 @@ use serde_derive::Serialize;
 use crate::lang;
 use crate::lang::Key::*;
 
-// const CREATE_NO_WINDOW: u32 = 0x08000000;
 const DETACHED_PROCESS: u32 = 0x00000008;
 
 pub fn query_devices(vec: &mut Vec<Device>) -> anyhow::Result<()> {
@@ -43,11 +42,6 @@ pub fn query_devices(vec: &mut Vec<Device>) -> anyhow::Result<()> {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    // pub name: String,
-    // pub version: String,
-    // #[serde(rename = "api_version")]
-    // pub api_version: String,
-    // #[serde(rename = "hidapi_version")]
     // pub hidapi_version: String,
     // pub device_count: i64,
     pub devices: Vec<Device>,
