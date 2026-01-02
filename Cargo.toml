@@ -19,6 +19,8 @@ anyhow = "1.0.99"
 dirs = "6.0.0"
 hidapi = "2.6.3"
 log = "0.4.22"
+win32_notif = "0.10.2"
+image = { version = "0.25.9", default-features = false, features = ["png"] }
 serde = "1.0.219"
 serde_derive = "1.0.228"
 serde_json = "1.0.145"
@@ -27,12 +29,17 @@ sys-locale = "0.3.2"
 toml = "0.9.5"
 tray-icon = "0.21.2"
 winit = "0.30.12"
-softbuffer = "0.4.6"
-tiny-skia = "0.11.4"
-ab_glyph = "0.2.29"
-svgtypes = "0.15.3"
-font-kit = "0.14.2"
-pathfinder_geometry = "0.5.1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Storage_EnhancedStorage",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+] }
 
 [build-dependencies]
 winres = "0.1"

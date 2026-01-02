@@ -1,55 +1,49 @@
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
-    #[serde(default = "default_overlay_enabled")]
-    pub overlay_enabled: bool,
-}
-
-fn default_overlay_enabled() -> bool {
-    true
+    pub notifications_enabled: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            overlay_enabled: true,
+            notifications_enabled: true,
         }
     }
 }
 
-pub fn load() -> Settings {
-    let path = match settings_path() {
-        Some(p) => p,
-        None => return Settings::default(),
-    };
-
-    let bytes = match std::fs::read(&path) {
-        Ok(b) => b,
-        Err(_) => return Settings::default(),
-    };
-
-    serde_json::from_slice(&bytes).unwrap_or_default()
-}
-
-pub fn save(settings: &Settings) -> std::io::Result<()> {
-    let path = settings_path().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "config dir not found")
-    })?;
-
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+impl Settings {
+    pub fn load() -> Self {
+        let config_path = Self::get_config_path();
+        if let Some(path) = &config_path {
+            if let Ok(contents) = fs::read_to_string(path) {
+                if let Ok(settings) = toml::from_str(&contents) {
+                    return settings;
+                }
+            }
+        }
+        Self::default()
     }
 
-    let bytes = serde_json::to_vec_pretty(settings)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    pub fn save(&self) {
+        if let Some(path) = Self::get_config_path() {
+            if let Some(parent) = path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if let Ok(toml) = toml::to_string(self) {
+                let _ = fs::write(path, toml);
+            }
+        }
+    }
 
-    std::fs::write(path, bytes)
-}
-
-fn settings_path() -> Option<std::path::PathBuf> {
-    let mut dir = dirs::config_dir()?;
-    dir.push("headset-battery-indicator");
-    dir.push("settings.json");
-    Some(dir)
+    fn get_config_path() -> Option<PathBuf> {
+        dirs::config_dir().map(|mut path| {
+            path.push("headset-battery-indicator");
+            path.push("settings.toml");
+            path
+        })
+    }
 }
