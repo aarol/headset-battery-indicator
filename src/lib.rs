@@ -74,18 +74,13 @@ fn embedded_notif_png(
 ) -> Option<(&'static [u8], &'static str)> {
     // Notification icon set in src/icons/notifs:
     // batt-5/10/25/50/75/full, with optional -charg.
-    let bucket = if battery_percent <= 5 {
-        "5"
-    } else if battery_percent <= 10 {
-        "10"
-    } else if battery_percent <= 25 {
-        "25"
-    } else if battery_percent <= 50 {
-        "50"
-    } else if battery_percent <= 75 {
-        "75"
-    } else {
-        "full"
+    let bucket = match battery_percent {
+        0..=7 => "5",
+        8..=17 => "10",
+        18..=37 => "25",
+        38..=62 => "50",
+        63..=87 => "75",
+        _ => "full",
     };
 
     let key = match (bucket, charging) {
