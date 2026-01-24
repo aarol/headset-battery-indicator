@@ -53,6 +53,19 @@ pub fn t(key: Key) -> &'static str {
             version => "Versione",
             update_available => "Aggiornamento disponibile",
         },
+        Lang::Pt => match key {
+            battery_remaining => "restante",
+            no_adapter_found => "Não foi encontrado adaptador de auscultadores",
+            view_logs => "Ver registos",
+            quit_program => "Fechar",
+            device_charging => "(A carregar)",
+            device_disconnected => "(Desconectado)",
+            battery_unavailable => "(Bateria indisponível)",
+            show_notifications => "Mostrar notificações",
+            notifications_enabled_message => "Notificações habilitadas",
+            version => "Versão",
+            update_available => "Atualização disponível",
+        },
     }
 }
 
@@ -62,6 +75,7 @@ pub enum Lang {
     Fi,
     De,
     It,
+    Pt,
 }
 
 #[allow(non_camel_case_types)]
@@ -90,6 +104,7 @@ pub static LANG: LazyLock<Lang> = LazyLock::new(|| {
         "fi" | "fi-FI" => Lang::Fi,
         "de" | "de-DE" | "de-AT" | "de-CH" => Lang::De,
         "it" | "it-IT" | "it-CH" => Lang::It,
+        "pt" | "pt-PT" | "pt-BR" => Lang::Pt,
         _ => Lang::En,
     }
 });
