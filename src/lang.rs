@@ -13,6 +13,7 @@ pub fn t(key: Key) -> &'static str {
             notifications_enabled_message => "Notifications enabled",
             version => "Version",
             update_available => "Update available",
+            choose_icon_color => "Choose icon color",
         },
         Lang::Fi => match key {
             no_adapter_found => "Kuulokeadapteria ei löytynyt",
@@ -26,6 +27,7 @@ pub fn t(key: Key) -> &'static str {
             show_text_icon => "Näytä akun tila numerona",
             version => "Versio",
             update_available => "Päivitys saatavilla",
+            choose_icon_color => "Valitse ikonin väri",
         },
         Lang::De => match key {
             no_adapter_found => "Kein Kopfhöreradapter gefunden",
@@ -39,6 +41,7 @@ pub fn t(key: Key) -> &'static str {
             show_text_icon => "Batteriestatus als Zahlensymbol anzeigen",
             version => "Version",
             update_available => "Update verfügbar",
+            choose_icon_color => "Symbolfarbe wählen",
         },
         Lang::It => match key {
             no_adapter_found => "Nessun adattatore per cuffie trovato",
@@ -52,6 +55,7 @@ pub fn t(key: Key) -> &'static str {
             show_text_icon => "Mostra stato batteria come icona numerica",
             version => "Versione",
             update_available => "Aggiornamento disponibile",
+            choose_icon_color => "Scegli colore icona",
         },
         Lang::Pt => match key {
             no_adapter_found => "Não foi encontrado adaptador de auscultadores",
@@ -65,6 +69,7 @@ pub fn t(key: Key) -> &'static str {
             show_text_icon => "Mostrar estado da bateria como ícone numérico",
             version => "Versão",
             update_available => "Atualização disponível",
+            choose_icon_color => "Escolher cor do ícone",
         },
     }
 }
@@ -91,6 +96,7 @@ pub enum Key {
     notifications_enabled_message,
     version,
     update_available,
+    choose_icon_color,
 }
 
 use std::sync::LazyLock;

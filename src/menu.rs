@@ -15,6 +15,7 @@ pub struct ContextMenu {
     pub menu: Menu,
     pub menu_enable_notifications: CheckMenuItem,
     pub menu_show_text_icon: CheckMenuItem,
+    pub menu_choose_color: MenuItem,
     menu_logs: MenuItem,
     menu_close: MenuItem,
     pub menu_trigger_notification: MenuItem,
@@ -47,12 +48,14 @@ impl ContextMenu {
 
         let menu_logs = MenuItem::new(lang::t(view_logs), true, None);
         let menu_close = MenuItem::new(lang::t(quit_program), true, None);
+        let menu_choose_color =
+            MenuItem::new(lang::t(choose_icon_color), settings.use_number_icon, None);
         let menu_trigger_notification = MenuItem::new("Trigger Test Notification", true, None);
 
         #[cfg(debug_assertions)]
         menu.append(&menu_trigger_notification)?;
 
-        menu.append_items(&[&menu_notifications, &menu_show_text_icon, &menu_logs])?;
+        menu.append_items(&[&menu_notifications, &menu_show_text_icon, &menu_choose_color, &menu_logs])?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&menu_close)?;
 
@@ -60,11 +63,16 @@ impl ContextMenu {
             menu,
             menu_enable_notifications: menu_notifications,
             menu_show_text_icon,
+            menu_choose_color,
             menu_logs,
             menu_close,
             menu_trigger_notification,
             menu_update_available: None,
         })
+    }
+
+    pub fn set_color_menu_enabled(&self, enabled: bool) {
+        self.menu_choose_color.set_enabled(enabled);
     }
 
     /// Shows an "Update available" menu item at the top of the menu

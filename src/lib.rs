@@ -154,7 +154,7 @@ impl AppState {
         state: BatteryStatus,
     ) -> anyhow::Result<tray_icon::Icon> {
         if settings.use_number_icon {
-            icon::generate_number_icon(theme, battery_percent, state).context("generating number icon")
+            icon::generate_number_icon(theme, battery_percent, state, settings.icon_color).context("generating number icon")
         } else {
             icon::load_from_resource(theme, battery_percent, state).context("loading icon from resource")
         }
@@ -226,6 +226,8 @@ impl ApplicationHandler<()> for AppState {
                     self.context_menu
                         .menu_show_text_icon
                         .set_checked(self.settings.use_number_icon);
+                    self.context_menu
+                        .set_color_menu_enabled(self.settings.use_number_icon);
 
                     _ = self.update(event_loop);
 
@@ -240,6 +242,16 @@ impl ApplicationHandler<()> for AppState {
                         self.notifier
                             .show_notification("Test Device", "Battery critical (50%)")
                             .expect("Sending test notification");
+                    }
+                }
+
+                id if id == self.context_menu.menu_choose_color.id() => {
+                    if let Some(new_color) = open_color_picker(self.settings.icon_color) {
+                        self.settings.icon_color = new_color;
+                        if let Err(e) = self.settings.save() {
+                            error!("Failed to save settings: {e:?}");
+                        }
+                        _ = self.update(event_loop);
                     }
                 }
 
@@ -262,6 +274,44 @@ impl ApplicationHandler<()> for AppState {
 }
 
 // Enable dark mode support on Windows 10/11
+
+/// Opens the native Windows color picker dialog.
+/// Returns:
+/// - `Some(Some([r, g, b]))` if the user selected a color
+/// - `Some(None)` if the user cancelled (resets to theme-adaptive)
+/// - `None` if the dialog could not be opened
+#[cfg(windows)]
+fn open_color_picker(current_color: Option<[u8; 3]>) -> Option<Option<[u8; 3]>> {
+    use windows::Win32::Foundation::{COLORREF, HWND};
+    use windows::Win32::UI::Controls::Dialogs::{CC_FULLOPEN, CC_RGBINIT, CHOOSECOLORW, ChooseColorW};
+
+    let initial_color: u32 = match current_color {
+        Some([r, g, b]) => r as u32 | ((g as u32) << 8) | ((b as u32) << 16),
+        None => 0x00FFFFFF, // Default to white
+    };
+
+    let mut custom_colors = [COLORREF(0u32); 16];
+    let mut cc = CHOOSECOLORW {
+        lStructSize: std::mem::size_of::<CHOOSECOLORW>() as u32,
+        hwndOwner: HWND::default(),
+        rgbResult: COLORREF(initial_color),
+        lpCustColors: custom_colors.as_mut_ptr(),
+        Flags: CC_RGBINIT | CC_FULLOPEN,
+        ..Default::default()
+    };
+
+    let picked = unsafe { ChooseColorW(&mut cc).as_bool() };
+    if picked {
+        let v = cc.rgbResult.0;
+        Some(Some([
+            (v & 0xFF) as u8,
+            ((v >> 8) & 0xFF) as u8,
+            ((v >> 16) & 0xFF) as u8,
+        ]))
+    } else {
+        Some(None) // Cancelled → reset to theme-adaptive
+    }
+}
 
 #[cfg(windows)]
 #[repr(C)]

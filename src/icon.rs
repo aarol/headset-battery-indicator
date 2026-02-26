@@ -7,16 +7,21 @@ pub fn generate_number_icon(
     theme: Theme,
     battery_percent: isize,
     state: BatteryStatus,
+    icon_color: Option<[u8; 3]>,
 ) -> anyhow::Result<tray_icon::Icon> {
     let size = 16;
     let mut img = vec![0u8; (size * size * 4) as usize];
 
-    let color = match state {
-        BatteryStatus::Charging => [0, 255, 0, 255], // Green when charging
-        BatteryStatus::Available if battery_percent <= 20 => [255, 0, 0, 255], // Red when low
-        // Otherwise, use white for dark theme and black for light theme
-        _ if theme == Theme::Dark => [255, 255, 255, 255],
-        _ => [0, 0, 0, 255], // Black for light theme
+    let color: [u8; 4] = if let Some([r, g, b]) = icon_color {
+        [r, g, b, 255]
+    } else {
+        match state {
+            BatteryStatus::Charging => [0, 255, 0, 255], // Green when charging
+            BatteryStatus::Available if battery_percent <= 20 => [255, 0, 0, 255], // Red when low
+            // Otherwise, use white for dark theme and black for light theme
+            _ if theme == Theme::Dark => [255, 255, 255, 255],
+            _ => [0, 0, 0, 255], // Black for light theme
+        }
     };
 
     if state == BatteryStatus::Unavailable {
