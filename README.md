@@ -17,6 +17,10 @@ Adds a small icon to the Windows task bar, displaying the battery level of most*
 
   ![Charging icon](docs/icon-charging.png)
 
+* You can also choose to show a percentage number instead of an icon
+
+  ![Percentage icon](docs/icon-text.png)
+
 * Shows notifications on low battery level or when finished charging (optional)
 
 Headset Battery Indicator depends on [HeadsetControl](https://github.com/Sapd/HeadsetControl), which is licensed under GPL v3.
@@ -82,6 +86,7 @@ There are translations for the following languages:
 * Italian
 * German
 * Portuguese
+* Spanish
 
 Translations can be added to the [lang.rs](./src/lang.rs) file.
 

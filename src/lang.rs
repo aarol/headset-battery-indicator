@@ -79,6 +79,19 @@ pub fn t(key: Key) -> &'static str {
             version => "版本",
             update_available => "有更新可用",
         },
+        Lang::Es => match key {
+            no_headset_found => "No se encontraron auriculares",
+            view_logs => "Ver registros",
+            quit_program => "Cerrar",
+            device_charging => "(Cargando)",
+            device_disconnected => "(Desconectado)",
+            battery_unavailable => "(Batería no disponible)",
+            show_notifications => "Mostrar notificaciones",
+            show_text_icon => "Mostrar el porcentaje de batería como un icono numérico",
+            notifications_enabled_message => "Notificaciones habilitadas",
+            version => "Versión",
+            update_available => "Actualización disponible",
+        },
     }
 }
 
@@ -90,6 +103,7 @@ pub enum Lang {
     It,
     Pt,
     Zh,
+    Es,
 }
 
 #[allow(non_camel_case_types)]
@@ -120,6 +134,7 @@ pub static LANG: LazyLock<Lang> = LazyLock::new(|| {
         "it" | "it-IT" | "it-CH" => Lang::It,
         "pt" | "pt-PT" | "pt-BR" => Lang::Pt,
         "zh" | "zh-CN" => Lang::Zh,
+        "es" | "es-ES" | "es-MX" => Lang::Es,
         _ => Lang::En,
     }
 });
