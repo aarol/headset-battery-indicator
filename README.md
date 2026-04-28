@@ -1,6 +1,6 @@
 # Headset Battery Indicator
 
-Adds a small icon to the Windows task bar, displaying the battery level of most* connected wireless headphones.
+Adds a small icon to the Windows task bar, displaying the battery level of connected wireless headphones.
 
 ![Screenshot of indicator on Windows task bar](docs/icon-screenshot.png)
 
@@ -11,7 +11,7 @@ Adds a small icon to the Windows task bar, displaying the battery level of most*
 * Supports most non-bluetooth headsets (SteelSeries, Logitech, Corsair, HyperX)
   * See all [supported headsets here](https://github.com/Sapd/HeadsetControl?tab=readme-ov-file#supported-headsets).
   
-    > Since headset support is done by reverse-engineering the USB HID protocol, not every headset is supported yet, and some headsets (notably Arctis Wireless 1) may not work even though they are listed as supported.
+    > Since headset support is done by reverse-engineering the USB HID protocol, not every headset is supported yet, and some headsets may not work even though they are listed as supported.
 
 * Shows a little green dot to indicate charging
 
@@ -87,22 +87,25 @@ There are translations for the following languages:
 * German
 * Portuguese
 * Spanish
+* Chinese
 
 Translations can be added to the [lang.rs](./src/lang.rs) file.
 
 ## Adding a new headset
 
-Headset Battery Indicator depends on [HeadsetControl](https://github.com/Sapd/HeadsetControl) for supporting many kinds of headset models. If the headset you're using isn't currently supported, you can either wait until someone else adds support for it, or try adding it yourself.
+Headset Battery Indicator depends on [HeadsetControl](https://github.com/Sapd/HeadsetControl) for supporting many kinds of headset models. HeadsetControl is a separate project maintained by a different person. [Several other](https://github.com/Sapd/HeadsetControl#gui-applications) applications depend on it.
 
-Reading the [HeadsetControl wiki](https://github.com/Sapd/HeadsetControl/wiki/Development-1-%E2%80%90-Adding-a-device) is the best resource on this.
+If your headset is not working, first take a look at the list of [supported devices](https://github.com/Sapd/HeadsetControl#supported-devices) on the HeadsetControl readme. Then read the following sections based on whether your headset appears in the list or not.
 
-I have a post on my website going a bit into reverse-engineering the headset APIs as well: <https://aarol.dev/posts/arctis-hid>
+---
 
-### Arctis headphone firmware update
+### If your headset is in the list (and is not working)
 
-In early 2026, many SteelSeries Arctis headphones received a new firmware update, adding more accurate battery level reporting, but also changing the HID product ID, leading to HeadsetControl (and thus this program) not recognizing the headset.
+Your headset is probably supported, but the firmware has been updated by the manufacturer.
 
-Luckily, the fix is quite simple. The new product ID simply needs to be reported to the maintainers.
+Such was the case in early 2026, when many SteelSeries Arctis headphones received a new firmware update, adding more accurate battery level reporting, but also changing the HID product ID, leading to HeadsetControl (and thus this program) not recognizing the headset.
+
+Luckily, the fix was quite simple. The new product ID simply needed to be reported to the maintainers.
 
 Here's how you can find the product ID:
 
@@ -114,7 +117,19 @@ Here's how you can find the product ID:
  <img width="400" height="455" alt="image" src="https://github.com/user-attachments/assets/47a21657-cc0f-4ed1-bc8c-7d8e8ece8827" />
 </details>
 
-Once you have the vID and pID, you can file an issue in the repository or in [HeadsetControl](https://github.com/Sapd/HeadsetControl), or file a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) if you're more technically savvy!
+Once you have the vID and pID, you can file a new issue in this repository, containing a screenshot of the device manager properties showing the new vID and pID.
+
+---
+
+### If your headset is not in the list (and is not working)
+
+If the headset you're using isn't currently supported, you can either wait until someone else adds support for it, or try adding it yourself.
+
+Adding support for a new headset generally requires reverse-engineering the USB HID interface the device uses to communicate with the OS.
+
+Reading the [HeadsetControl docs](https://github.com/Sapd/HeadsetControl/blob/master/docs/ADDING_A_DEVICE.md) are the best resource on this. Follow the instructions on there. In order to make a pull request, you need basic knowledge of C++. 
+
+I have a post on my website going a bit into reverse-engineering the headset APIs as well: <https://aarol.dev/posts/arctis-hid>
 
 ### License
 
