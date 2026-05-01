@@ -10,7 +10,8 @@ mod version_check;
 use anyhow::Result;
 use lang::Key::*;
 use std::{
-    sync::LazyLock, time::{Duration, Instant}
+    sync::LazyLock,
+    time::{Duration, Instant},
 };
 use windows::{
     Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA},
@@ -99,6 +100,17 @@ impl AppState {
 
     fn update(&mut self, _event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
         let result = headset_control::query_device();
+
+        if self.notifier.is_none() {
+            debug!("Notifier not initialized, attempting to initialize..");
+            self.notifier = match Notifier::new() {
+                Ok(notifier) => Some(notifier),
+                Err(err) => {
+                    debug!("Failed to initialize notification system: {err:?}");
+                    None
+                }
+            };
+        }
 
         match result {
             None => {
@@ -333,13 +345,9 @@ fn should_system_use_dark_mode() -> bool {
             match LoadLibraryA(windows::core::s!("uxtheme.dll")) {
                 Ok(module) => {
                     let handle = GetProcAddress(module, UXTHEME_SHOULDSYSTEMUSEDARKMODE_ORDINAL);
-                    if let Some(handle) = handle {
-                        Some(std::mem::transmute(handle))
-                    } else {
-                        None
-                    }
+                    handle.map(|handle| std::mem::transmute(handle))
                 }
-                Err(_) => return None,
+                Err(_) => None,
             }
         });
 
