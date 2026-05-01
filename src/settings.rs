@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use winreg::enums::HKEY_CURRENT_USER;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct Settings {
+    #[serde(default, rename="NotificationsEnabled")]
     pub notifications_enabled: bool,
+    #[serde(default, rename="UseNumberIcon")]
     pub use_number_icon: bool,
 }
 
@@ -14,14 +17,8 @@ impl Settings {
             .create_subkey("Software\\HeadsetBatteryIndicator")
             .context("accessing registry key")?;
 
-        let notifications_enabled: u32 = key.get_value("NotificationsEnabled").unwrap_or_default();
-        let use_number_icon: u32 = key.get_value("UseNumberIcon").unwrap_or_default();
+        let settings: Settings = key.decode().context("decoding registry values")?;
 
-
-        let settings = Self {
-            notifications_enabled: notifications_enabled != 0,
-            use_number_icon: use_number_icon != 0,
-        };
         log::debug!("Loaded settings: {:?}", settings);
         Ok(settings)
     }
@@ -32,11 +29,7 @@ impl Settings {
             .create_subkey("Software\\HeadsetBatteryIndicator")
             .context("accessing registry key")?;
 
-        key.set_value("NotificationsEnabled", &(self.notifications_enabled as u32))
-            .context("setting NotificationsEnabled value")?;
-
-        key.set_value("UseNumberIcon", &(self.use_number_icon as u32))
-            .context("setting UseNumberIcon value")?;
+        key.encode(self).context("encoding settings to registry")?;
 
         Ok(())
     }
