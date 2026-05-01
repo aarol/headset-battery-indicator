@@ -16,7 +16,7 @@ pub struct Notifier {
 impl Notifier {
     pub fn new() -> anyhow::Result<Self> {
         let app_id = register_notifications_id().context("registering notifications id")?;
-        let toast_notifier = ToastsNotifier::new(app_id)?;
+        let toast_notifier = ToastsNotifier::new(Some(app_id))?;
         Ok(Self {
             toast_notifier,
             last_notification_state: None,

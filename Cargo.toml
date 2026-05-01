@@ -1,6 +1,6 @@
 [package]
 name = "headset-battery-indicator"
-version = "3.6.0"
+version = "3.6.1"
 edition = "2024"
 authors = ["Aaro Luomanen"]
 description = "Displays a battery icon in the Windows system tray for wireless headsets."
@@ -15,21 +15,18 @@ name = "headset-battery-indicator-debug"
 path = "src/bin/debug.rs"
 
 [dependencies]
-anyhow = "1.0.99"
-dirs = "6.0.0"
-hidapi = "2.6.3"
+anyhow = "1.0.102"
 log = "0.4.22"
-win32_notif = "0.10.2"
+win32_notif = "0.15.2"
 serde = "1.0.219"
 serde_derive = "1.0.228"
 serde_json = "1.0.145"
 simplelog = { version = "0.12.2", features = ["paris"] }
 sys-locale = "0.3.2"
-toml = "0.9.5"
-tray-icon = "0.21.3"
+tray-icon = "0.22.1"
 winit = "0.30.12"
-winreg = "0.55.0"
-ureq = { version = "3.1.4", features = ["json"] }
+winreg = { version = "0.56.0", features = ["serialization-serde"] }
+ureq = { version = "3.3.0", features = ["json"] }
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_Storage_EnhancedStorage",
@@ -39,13 +36,13 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell",
     "Win32_UI_Shell_PropertiesSystem",
 ] }
-libc = "0.2.180"
+libc = "0.2.186"
 
 [build-dependencies]
 winres = "0.1"
-cmake = "0.1"
+cmake = "0.1.58"
 vcpkg = "0.2"
-cc = {version = "1", features = ["jobserver"]}
+cc = { version = "1.2.61", features = ["jobserver"] }
 
 [profile.release]
 opt-level = "z"
