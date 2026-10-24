@@ -21,6 +21,9 @@ Adds a small icon to the Windows task bar, displaying the battery level of conne
 
   ![Percentage icon](docs/icon-text.png)
 
+  Percentage numbers use antialiased Segoe UI text, follow the taskbar theme,
+  and display the full 0–100 range.
+
 * Shows notifications on low battery level or when finished charging (optional)
 
 Headset Battery Indicator depends on [HeadsetControl](https://github.com/Sapd/HeadsetControl), which is licensed under GPL v3.

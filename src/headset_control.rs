@@ -68,6 +68,8 @@ pub fn query_device() -> Option<Device> {
                     });
                 }
             }
+            // Also release discovered devices after unsupported/failed reads.
+            hsc_free_headsets(headsets, count);
         }
     }
 

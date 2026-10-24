@@ -3,6 +3,7 @@ mod icon;
 mod lang;
 mod menu;
 mod notify;
+mod number_icon;
 mod settings;
 mod version_check;
 
@@ -33,6 +34,8 @@ use std::sync::mpsc;
 
 struct AppState {
     tray_icon: TrayIcon,
+    device_receiver: mpsc::Receiver<Option<headset_control::Device>>,
+    device: Option<headset_control::Device>,
     context_menu: menu::ContextMenu,
     settings: settings::Settings,
     notifier: Option<Notifier>,
@@ -86,8 +89,24 @@ impl AppState {
         // Check for updates in the background (non-blocking)
         let update_receiver = version_check::check_for_updates_async(VERSION);
 
+        // USB reads can take seconds or time out. Never run them on the
+        // Windows message thread: it also owns the tray context menu.
+        let (device_sender, device_receiver) = mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            loop {
+                let device = headset_control::query_device();
+                match device_sender.try_send(device) {
+                    Err(mpsc::TrySendError::Disconnected(_)) => break,
+                    _ => {}
+                }
+                std::thread::sleep(Duration::from_secs(1));
+            }
+        });
+
         Ok(Self {
             tray_icon,
+            device_receiver,
+            device: None,
             context_menu,
             settings,
             notifier,
@@ -99,7 +118,10 @@ impl AppState {
     }
 
     fn update(&mut self, _event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        let result = headset_control::query_device();
+        while let Ok(device) = self.device_receiver.try_recv() {
+            self.device = device;
+        }
+        let result = self.device.as_ref();
 
         if self.notifier.is_none() {
             debug!("Notifier not initialized, attempting to initialize..");
@@ -180,9 +202,9 @@ impl AppState {
 
 impl ApplicationHandler<()> for AppState {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        // Kick off polling every 1 second
+        // Process queued menu events promptly, even between hardware updates.
         event_loop.set_control_flow(ControlFlow::WaitUntil(
-            Instant::now() + Duration::from_secs(1),
+            Instant::now() + Duration::from_millis(50),
         ));
     }
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
@@ -192,7 +214,7 @@ impl ApplicationHandler<()> for AppState {
             // If not overwritten, it starts polling multiple times a second
             // since the timer is already elapsed.
             event_loop.set_control_flow(ControlFlow::WaitUntil(
-                Instant::now() + Duration::from_secs(1),
+                Instant::now() + Duration::from_millis(50),
             ));
         }
     }
@@ -209,14 +231,14 @@ impl ApplicationHandler<()> for AppState {
             }
         }
 
-        // This will be called at least every second
+        // Refresh from the latest background result once per second.
         if self.last_update.elapsed() > Duration::from_millis(1000) {
             if let Err(e) = self.update(event_loop) {
                 error!("Failed to update status: {e:?}");
             };
             self.last_update = Instant::now();
         }
-        if let Ok(event) = MenuEvent::receiver().try_recv() {
+        while let Ok(event) = MenuEvent::receiver().try_recv() {
             match event.id {
                 id if id == self.context_menu.menu_enable_notifications.id() => {
                     self.settings.notifications_enabled = !self.settings.notifications_enabled;
