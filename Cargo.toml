@@ -1,6 +1,6 @@
 [package]
 name = "headset-battery-indicator"
-version = "3.6.1"
+version = "3.7.0"
 edition = "2024"
 authors = ["Aaro Luomanen"]
 description = "Displays a battery icon in the Windows system tray for wireless headsets."
@@ -14,6 +14,19 @@ default-run = "headset-battery-indicator-debug"
 name = "headset-battery-indicator-debug"
 path = "src/bin/debug.rs"
 
+[[bin]]
+name = "headset-battery-indicator"
+path = "src/main.rs"
+
+[[bin]]
+name = "headset-battery-indicator-portable"
+path = "src/main.rs"
+required-features = ["portable"]
+
+[features]
+default = []
+portable = []
+
 [dependencies]
 anyhow = "1.0.102"
 log = "0.4.22"
@@ -23,7 +36,7 @@ serde_derive = "1.0.228"
 serde_json = "1.0.145"
 simplelog = { version = "0.12.2", features = ["paris"] }
 sys-locale = "0.3.2"
-tray-icon = "0.22.1"
+tray-icon = "0.25.1"
 winit = "0.30.12"
 winreg = { version = "0.56.0", features = ["serialization-serde"] }
 ureq = { version = "3.3.0", features = ["json"] }
@@ -37,6 +50,7 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell_PropertiesSystem",
 ] }
 libc = "0.2.186"
+toml = { version = "1.1.6", features = ["parse", "std", "serde", "display"], default-features = false }
 
 [build-dependencies]
 winres = "0.1"

@@ -1,3 +1,4 @@
 {
-  "lldb.script": { "lang.rust.toolchain": "stable-x86_64-pc-windows-gnu" }
+  "lldb.script": { "lang.rust.toolchain": "stable-x86_64-pc-windows-gnu" },
+  "rust-analyzer.cargo.features": [""]
 }

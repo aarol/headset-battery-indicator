@@ -8,7 +8,7 @@
 AppId=88ECD258-57B9-4DDB-ABA3-67DC0289A92C
 AppName={#MyAppDisplayName}
 ; keep this up to date
-AppVersion=3.6.0
+AppVersion=3.7.0
 WizardStyle=modern
 DefaultDirName={localappdata}\Programs\HeadsetBatteryIndicator
 DefaultGroupName={#MyAppDisplayName}

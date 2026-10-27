@@ -22,9 +22,11 @@ jobs:
           shared-key: "build-cache"
 
       - run: cargo build --release
+      - run: cargo build --release --bin headset-battery-indicator-portable --features portable
 
       - run: ISCC ./installer.iss
             # result in ./Output/HeadsetBatteryIndicatorSetup.exe
+      - run: cp target/release/headset-battery-indicator-portable.exe ./Output/HeadsetBatteryIndicatorPortable.exe
 
       - name: Sign executable
         env:
@@ -39,18 +41,23 @@ jobs:
           $SignTool = Get-ChildItem -Path "C:\\Program Files*\\Windows Kits\\*\\bin\\*\\x64\\signtool.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           $SignToolPath = $SignTool.FullName
           & $SignToolPath sign /f certificate_from_secret.pfx /p $env:CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 "Output/HeadsetBatteryIndicatorSetup.exe"
+          & $SignToolPath sign /f certificate_from_secret.pfx /p $env:CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 "Output/HeadsetBatteryIndicatorPortable.exe"
+
           # Clean up certificate
           Remove-Item certificate_from_secret.pfx
 
       - name: Attest Build Provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest@v4
         with:
-          subject-path: "Output/HeadsetBatteryIndicatorSetup.exe"
+          subject-path: |
+            Output/HeadsetBatteryIndicatorSetup.exe
+            Output/HeadsetBatteryIndicatorPortable.exe
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             Output/HeadsetBatteryIndicatorSetup.exe
+            Output/HeadsetBatteryIndicatorPortable.exe
           body_path: "changelog/${{github.ref_name}}.md"
           draft: true
           name: Release ${{github.ref_name}}

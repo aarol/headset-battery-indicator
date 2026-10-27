@@ -23,6 +23,14 @@ Adds a small icon to the Windows task bar, displaying the battery level of conne
 
 * Shows notifications on low battery level or when finished charging (optional)
 
+* Portable mode: run the program without installing it. In portable mode, the settings are stored in the same directory as the executable (`headset-battery-indicator-settings.toml`).
+
+  > Default settings:
+  > ```toml
+  > NotificationsEnabled = false
+  > UseNumberIcon = false
+  > ```
+
 Headset Battery Indicator depends on [HeadsetControl](https://github.com/Sapd/HeadsetControl), which is licensed under GPL v3.
 
 ## Installation

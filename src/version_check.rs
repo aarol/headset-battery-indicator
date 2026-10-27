@@ -24,7 +24,7 @@ pub fn check_for_updates_async(current_version: &'static str) -> Receiver<bool> 
     rx
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde_derive::Deserialize)]
 struct GithubRelease {
     tag_name: String,
 }
