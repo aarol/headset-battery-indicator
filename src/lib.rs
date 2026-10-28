@@ -9,6 +9,10 @@ mod version_check;
 #[cfg(windows)]
 use anyhow::Result;
 use lang::Key::*;
+#[cfg(windows)]
+use windows::Win32::System::Threading::{GetCurrentProcess, IDLE_PRIORITY_CLASS, PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_STATE, ProcessPowerThrottling, SetPriorityClass, SetProcessInformation};
+#[cfg(windows)]
+use std::os::raw::c_void;
 use std::{
     sync::LazyLock,
     time::{Duration, Instant},
@@ -51,6 +55,10 @@ pub fn run() -> anyhow::Result<()> {
 
     if let Err(err) = enable_menu_dark_mode_support() {
         warn!("Failed to enable dark mode support: {:?}", err);
+    }
+
+    if let Err(err) = set_efficiency_mode(true) {
+        warn!("Failed to set efficiency mode: {:?}", err);
     }
 
     let event_loop = EventLoop::new().context("Error initializing event loop")?;
@@ -354,4 +362,34 @@ fn should_system_use_dark_mode() -> bool {
     SHOULD_SYSTEM_USE_DARK_MODE
         .map(|shoud_system_use_dark_mode| unsafe { (shoud_system_use_dark_mode)() })
         .unwrap_or(true)
+}
+
+#[cfg(windows)]
+pub fn set_efficiency_mode(enable: bool) -> windows::core::Result<()> {
+    unsafe {
+        let process = GetCurrentProcess();
+
+        // EcoQoS: ControlMask says "I'm taking control of this flag",
+        // StateMask says whether it's on (flag set) or off (0).
+        let state = PROCESS_POWER_THROTTLING_STATE {
+            Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+            ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
+            StateMask: if enable { PROCESS_POWER_THROTTLING_EXECUTION_SPEED } else { 0 },
+        };
+
+        SetProcessInformation(
+            process,
+            ProcessPowerThrottling,
+            &state as *const _ as *const c_void,
+            size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
+        )?;
+
+        // Task Manager's Efficiency mode also drops the priority class.
+        use windows::Win32::System::Threading::NORMAL_PRIORITY_CLASS;
+        SetPriorityClass(
+            process,
+            if enable { IDLE_PRIORITY_CLASS } else { NORMAL_PRIORITY_CLASS },
+        )?;
+    }
+    Ok(())
 }
