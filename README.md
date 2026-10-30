@@ -27,7 +27,7 @@ Adds a small icon to the Windows task bar, displaying the battery level of conne
 
   > Default settings:
   > ```toml
-  > NotificationsEnabled = false
+  > NotificationsEnabled = true
   > UseNumberIcon = false
   > ```
 
