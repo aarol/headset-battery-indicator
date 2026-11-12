@@ -42,36 +42,44 @@ pub fn query_device() -> Option<Device> {
         let mut headsets: *mut c_void = std::ptr::null_mut();
         let count = hsc_discover(&mut headsets);
 
-        if count > 0 {
-            let headset_array =
-                std::slice::from_raw_parts(headsets as *const *mut c_void, count as usize);
+        if count <= 0 {
+            return None;
+        }
 
-            let headset = headset_array[0]; // Just take the first headset found
-            if hsc_supports(headset, BATTERY_CAPABILITY) {
-                let mut battery = HscBattery {
-                    level_percent: 0,
-                    status: BatteryStatus::Unavailable,
-                    voltage_mv: -1,
-                    time_to_full_min: -1,
-                    time_to_empty_min: -1,
-                };
-                if hsc_get_battery(headset, &mut battery) == 0 {
-                    let product_name = CStr::from_ptr(hsc_get_product_name(headset))
-                        .to_str()
-                        .unwrap_or("Unknown")
-                        .to_string();
+        let headset_array =
+            std::slice::from_raw_parts(headsets as *const *mut c_void, count as usize);
 
-                    hsc_free_headsets(headsets, count);
-                    return Some(Device {
-                        product_name,
-                        battery,
-                    });
-                }
+        let headset = headset_array[0]; // Just take the first headset found
+        let mut result = None;
+
+        if hsc_supports(headset, BATTERY_CAPABILITY) {
+            let mut battery = HscBattery {
+                level_percent: 0,
+                status: BatteryStatus::Unavailable,
+                voltage_mv: -1,
+                time_to_full_min: -1,
+                time_to_empty_min: -1,
+            };
+            if hsc_get_battery(headset, &mut battery) == 0 {
+                // Copy the name before freeing: it points into the headset object.
+                let product_name = CStr::from_ptr(hsc_get_product_name(headset))
+                    .to_str()
+                    .unwrap_or("Unknown")
+                    .to_string();
+
+                result = Some(Device {
+                    product_name,
+                    battery,
+                });
             }
         }
-    }
 
-    None
+        // Always free the headsets, even when the battery read fails. Each headset
+        // holds open HID handles that are only closed here; skipping this on the
+        // failure path leaked handles every poll while the headset was off.
+        hsc_free_headsets(headsets, count);
+        result
+    }
 }
 
 pub struct Device {
