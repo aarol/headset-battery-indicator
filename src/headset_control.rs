@@ -31,7 +31,7 @@ const BATTERY_CAPABILITY: c_int = 1;
 unsafe extern "C" {
     unsafe fn hsc_discover(headsets: *mut *mut c_void) -> c_int;
     unsafe fn hsc_free_headsets(headsets: *mut c_void, count: c_int);
-    // unsafe fn hsc_get_name(headset: *mut c_void) -> *const c_char;
+    unsafe fn hsc_get_name(headset: *mut c_void) -> *const c_char;
     unsafe fn hsc_get_product_name(headset: *mut c_void) -> *const c_char;
     unsafe fn hsc_supports(headset: *mut c_void, cap: c_int) -> bool;
     unsafe fn hsc_get_battery(headset: *mut c_void, battery: *mut HscBattery) -> c_int;
@@ -62,10 +62,11 @@ pub fn query_device() -> Option<Device> {
             };
             if hsc_get_battery(headset, &mut battery) == 0 {
                 // Copy the name before freeing: it points into the headset object.
-                let product_name = CStr::from_ptr(hsc_get_product_name(headset))
-                    .to_str()
-                    .unwrap_or("Unknown")
-                    .to_string();
+                // The product name is NULL when the device reports none; the
+                // model name is always set.
+                let product_name = c_string(hsc_get_product_name(headset))
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or_else(|| model_name(headset));
 
                 result = Some(Device {
                     product_name,
@@ -80,6 +81,23 @@ pub fn query_device() -> Option<Device> {
         hsc_free_headsets(headsets, count);
         result
     }
+}
+
+/// An owned copy of a C string, None for NULL
+unsafe fn c_string(ptr: *const c_char) -> Option<String> {
+    if ptr.is_null() {
+        return None;
+    }
+    Some(
+        unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned(),
+    )
+}
+
+/// The headset model's name, which HeadsetControl always sets
+unsafe fn model_name(headset: *mut c_void) -> String {
+    unsafe { c_string(hsc_get_name(headset)) }.unwrap_or_else(|| "Unknown".to_string())
 }
 
 pub struct Device {
