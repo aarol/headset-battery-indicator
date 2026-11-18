@@ -78,9 +78,9 @@ fn mark_built(marker_name: &str) {
 /// This provides the low-level USB HID communication layer needed by headsetcontrol.
 fn build_hidapi() {
     println!("cargo:rerun-if-changed=vendor/hidapi/windows/hid.c");
-    
+
     let out_dir = env::var("OUT_DIR").unwrap();
-    
+
     // Skip build if library already exists and source hasn't changed
     if !needs_rebuild("hidapi.built") {
         println!("cargo:warning=Skipping hidapi build (already cached)");
@@ -90,7 +90,7 @@ fn build_hidapi() {
         println!("cargo:rustc-link-lib=setupapi");
         return;
     }
-    
+
     println!("cargo:warning=Building hidapi from source...");
     cc::Build::new()
         .file("vendor/hidapi/windows/hid.c")
@@ -98,9 +98,9 @@ fn build_hidapi() {
         .include("vendor/hidapi/windows")
         .warnings(false)
         .compile("hidapi");
-    
+
     mark_built("hidapi.built");
-    
+
     // Link Windows system libraries required by hidapi
     println!("cargo:rustc-link-lib=setupapi");
 }
@@ -109,7 +109,7 @@ fn build_hidapi() {
 ///
 /// Compiles the headsetcontrol library from source, which provides support for
 /// controlling various gaming headsets (SteelSeries, Logitech, Corsair, etc.).
-/// 
+///
 /// Configuration:
 /// - C++20 standard (required for modern C++ features)
 /// - Dynamic CRT (/MD) for minimal binary size  
@@ -117,10 +117,9 @@ fn build_hidapi() {
 /// - MSVC-specific flags for C++20 conformance
 fn build_headsetcontrol() {
     println!("cargo:rerun-if-changed=vendor/headsetcontrol/lib");
-    
+
     let out_dir = env::var("OUT_DIR").unwrap();
 
-    
     // Skip build if library already exists and source hasn't changed
     if !needs_rebuild("headsetcontrol.built") {
         println!("cargo:warning=Skipping headsetcontrol build (already cached)");
@@ -130,18 +129,18 @@ fn build_headsetcontrol() {
         println!("cargo:rustc-link-lib=static=hidapi");
         return;
     }
-    
+
     println!("cargo:warning=Building headsetcontrol from source (this may take a while)...");
-    
+
     // Generate version.h
     let version_h_content = r#"#pragma once
 #define VERSION "3.3.0-dirty"
 "#;
     fs::write("vendor/headsetcontrol/lib/version.h", version_h_content)
         .expect("Failed to write version.h");
-    
+
     let mut build = cc::Build::new();
-    
+
     build
         .cpp(true)
         .std("c++20")
@@ -160,25 +159,25 @@ fn build_headsetcontrol() {
         .file("vendor/headsetcontrol/lib/result_types.cpp")
         .file("vendor/headsetcontrol/lib/utility.cpp")
         .file("vendor/headsetcontrol/lib/devices/hid_device.cpp");
-    
+
     // MSVC-specific configuration for minimal binary size
     if build.get_compiler().is_like_msvc() {
         build
-            .flag("/W4")                    // Warning level 4
-            .flag("/Zc:preprocessor")       // Conforming preprocessor (required for C++20)
-            .flag("/EHsc")                  // Exception handling
-            .define("NDEBUG", None);        // Release mode
+            .flag("/W4") // Warning level 4
+            .flag("/Zc:preprocessor") // Conforming preprocessor (required for C++20)
+            .flag("/EHsc") // Exception handling
+            .define("NDEBUG", None); // Release mode
     }
-        
+
     // On MSVC, output name must be "headsetcontrol_static" to match linker expectations
     if build.get_compiler().is_like_msvc() {
         build.compile("headsetcontrol_static");
     } else {
         build.compile("headsetcontrol");
     }
-    
+
     mark_built("headsetcontrol.built");
-    
+
     // Link hidapi library
     println!("cargo:rustc-link-lib=static=hidapi");
 }

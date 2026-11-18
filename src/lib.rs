@@ -10,12 +10,16 @@ mod version_check;
 use anyhow::Result;
 use lang::Key::*;
 #[cfg(windows)]
-use windows::Win32::System::Threading::{GetCurrentProcess, IDLE_PRIORITY_CLASS, PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_STATE, ProcessPowerThrottling, SetPriorityClass, SetProcessInformation};
-#[cfg(windows)]
 use std::os::raw::c_void;
 use std::{
     sync::LazyLock,
     time::{Duration, Instant},
+};
+#[cfg(windows)]
+use windows::Win32::System::Threading::{
+    GetCurrentProcess, IDLE_PRIORITY_CLASS, PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+    PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_STATE,
+    ProcessPowerThrottling, SetPriorityClass, SetProcessInformation,
 };
 use windows::{
     Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA},
@@ -32,11 +36,12 @@ use winit::{
     window::Theme,
 };
 
-use crate::{headset_control::BatteryStatus, notify::Notifier, settings::Settings};
+use crate::{headset_control::BatteryStatus, icon::IconProvider, notify::Notifier};
 use std::sync::mpsc;
 
 struct AppState {
     tray_icon: TrayIcon,
+    icon_provider: IconProvider,
     context_menu: menu::ContextMenu,
     settings: settings::Settings,
     notifier: Option<Notifier>,
@@ -70,9 +75,14 @@ pub fn run() -> anyhow::Result<()> {
 
 impl AppState {
     pub fn init() -> anyhow::Result<Self> {
-        let settings = settings::Settings::load().context("loading config from registry")?;
+        let settings = settings::Settings::load()
+            .context("loading config from registry")
+            .unwrap_or_default();
 
-        let icon = Self::load_icon(settings, Theme::Dark, 0, BatteryStatus::Unavailable)
+        let mut icon_provider = IconProvider::new();
+
+        let icon = icon_provider
+            .get_icon(Theme::Dark, 0, BatteryStatus::Unavailable, settings)
             .context("loading fallback icon")?;
 
         let context_menu = menu::ContextMenu::new(settings).context("creating context menu")?;
@@ -96,6 +106,7 @@ impl AppState {
 
         Ok(Self {
             tray_icon,
+            icon_provider,
             context_menu,
             settings,
             notifier,
@@ -128,8 +139,12 @@ impl AppState {
 
                 self.tray_icon
                     .set_tooltip(Some(lang::t(no_headset_found)))?;
-                match Self::load_icon(self.settings, system_theme(), 0, BatteryStatus::Unavailable)
-                {
+                match self.icon_provider.get_icon(
+                    system_theme(),
+                    0,
+                    BatteryStatus::Unavailable,
+                    self.settings,
+                ) {
                     Ok(icon) => self.tray_icon.set_icon(Some(icon))?,
                     Err(err) => error!("Failed to load icon: {err:?}"),
                 }
@@ -157,8 +172,12 @@ impl AppState {
                     .set_tooltip(Some(&tooltip_text))
                     .with_context(|| format!("setting tooltip text: {tooltip_text}"))?;
 
-                match Self::load_icon(self.settings, system_theme(), battery_level, battery_status)
-                {
+                match self.icon_provider.get_icon(
+                    system_theme(),
+                    battery_level,
+                    battery_status,
+                    self.settings,
+                ) {
                     Ok(icon) => self.tray_icon.set_icon(Some(icon))?,
                     Err(err) => error!("Failed to load icon: {err:?}"),
                 }
@@ -167,21 +186,6 @@ impl AppState {
 
                 Ok(())
             }
-        }
-    }
-
-    fn load_icon(
-        settings: Settings,
-        theme: Theme,
-        battery_percent: isize,
-        state: BatteryStatus,
-    ) -> anyhow::Result<tray_icon::Icon> {
-        if settings.use_number_icon {
-            icon::generate_number_icon(theme, battery_percent, state)
-                .context("generating number icon")
-        } else {
-            icon::load_from_resource(theme, battery_percent, state)
-                .context("loading icon from resource")
         }
     }
 }
@@ -238,12 +242,11 @@ impl ApplicationHandler<()> for AppState {
                     if self.settings.notifications_enabled {
                         let msg = lang::t(notifications_enabled_message);
 
-                        if let Some(notifier) = &mut self.notifier {
-                            if let Err(err) =
+                        if let Some(notifier) = &mut self.notifier
+                            && let Err(err) =
                                 notifier.show_notification("Headset Battery Indicator", msg)
-                            {
-                                error!("Failed to show notification: {:?}", err);
-                            }
+                        {
+                            error!("Failed to show notification: {:?}", err);
                         }
                     }
                 }
@@ -374,7 +377,11 @@ pub fn set_efficiency_mode(enable: bool) -> windows::core::Result<()> {
         let state = PROCESS_POWER_THROTTLING_STATE {
             Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
             ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
-            StateMask: if enable { PROCESS_POWER_THROTTLING_EXECUTION_SPEED } else { 0 },
+            StateMask: if enable {
+                PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+            } else {
+                0
+            },
         };
 
         SetProcessInformation(
@@ -388,7 +395,11 @@ pub fn set_efficiency_mode(enable: bool) -> windows::core::Result<()> {
         use windows::Win32::System::Threading::NORMAL_PRIORITY_CLASS;
         SetPriorityClass(
             process,
-            if enable { IDLE_PRIORITY_CLASS } else { NORMAL_PRIORITY_CLASS },
+            if enable {
+                IDLE_PRIORITY_CLASS
+            } else {
+                NORMAL_PRIORITY_CLASS
+            },
         )?;
     }
     Ok(())

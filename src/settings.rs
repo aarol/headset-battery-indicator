@@ -2,12 +2,22 @@ use anyhow::{Context, Result};
 use serde_derive::{Deserialize, Serialize};
 
 // This struct is parsed from either registry settings or headset-battery-indicator-settings.toml if in portable mode.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq)]
+#[serde(default)]
 pub struct Settings {
-    #[serde(default, rename = "NotificationsEnabled")]
+    #[serde(rename = "NotificationsEnabled")]
     pub notifications_enabled: bool,
-    #[serde(default, rename = "UseNumberIcon")]
+    #[serde(rename = "UseNumberIcon")]
     pub use_number_icon: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            notifications_enabled: true,
+            use_number_icon: false,
+        }
+    }
 }
 
 #[cfg(feature = "portable")]
@@ -34,10 +44,7 @@ impl Settings {
                 "Settings file not found at {:?}, using default settings",
                 settings_path
             );
-            Ok(Settings {
-                notifications_enabled: true,
-                use_number_icon: false,
-            })
+            Ok(Settings::default())
         }
     }
 

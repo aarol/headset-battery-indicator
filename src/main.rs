@@ -21,10 +21,12 @@ pub fn init_file_logger() -> anyhow::Result<()> {
             anyhow::bail!("Failed to get current directory: {err}");
         }
         Ok(current_exe) => {
-            let log_file = File::options()
-                .append(true)
-                .create(true)
-                .open(current_exe.parent().unwrap().join("headset-battery-indicator.log"))?;
+            let log_file = File::options().append(true).create(true).open(
+                current_exe
+                    .parent()
+                    .unwrap()
+                    .join("headset-battery-indicator.log"),
+            )?;
 
             WriteLogger::init(
                 log::LevelFilter::Info,
