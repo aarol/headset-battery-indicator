@@ -96,6 +96,7 @@ There are translations for the following languages:
 * Portuguese
 * Spanish
 * Chinese
+* Russian
 
 Translations can be added to the [lang.rs](./src/lang.rs) file.
 
