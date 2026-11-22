@@ -8,9 +8,14 @@ use win32_notif::{
 #[cfg(windows)]
 use windows::{Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID, core::HSTRING};
 
+/// When a headset is connected, the first few polls may return nonsensical values,
+/// so we ignore the first few polls.
+const CONNECT_WARMUP_POLLS: u8 = 2;
+
 pub struct Notifier {
     toast_notifier: ToastsNotifier,
     last_notification_state: Option<(isize, BatteryStatus)>,
+    warmup_polls_remaining: u8,
 }
 
 impl Notifier {
@@ -20,6 +25,7 @@ impl Notifier {
         Ok(Self {
             toast_notifier,
             last_notification_state: None,
+            warmup_polls_remaining: CONNECT_WARMUP_POLLS,
         })
     }
 
@@ -29,6 +35,20 @@ impl Notifier {
         current_status: BatteryStatus,
         product_name: &str,
     ) {
+        if !matches!(
+            current_status,
+            BatteryStatus::Available | BatteryStatus::Charging,
+        ) {
+            self.last_notification_state = None;
+            self.warmup_polls_remaining = CONNECT_WARMUP_POLLS;
+            return;
+        }
+
+        if self.warmup_polls_remaining > 0 {
+            self.warmup_polls_remaining -= 1;
+            return;
+        }
+
         if let Some((last_level, last_status)) = self.last_notification_state {
             let mut msg = None;
 

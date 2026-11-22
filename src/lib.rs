@@ -11,10 +11,7 @@ use anyhow::Result;
 use lang::Key::*;
 #[cfg(windows)]
 use std::os::raw::c_void;
-use std::{
-    sync::LazyLock,
-    time::{Duration, Instant},
-};
+use std::{sync::LazyLock, thread, time::Duration};
 #[cfg(windows)]
 use windows::Win32::System::Threading::{
     GetCurrentProcess, IDLE_PRIORITY_CLASS, PROCESS_POWER_THROTTLING_CURRENT_VERSION,
@@ -31,13 +28,12 @@ use log::{debug, error, info, warn};
 use tray_icon::{TrayIcon, TrayIconBuilder, menu::MenuEvent};
 use winit::{
     application::ApplicationHandler,
-    event::{StartCause, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
     window::Theme,
 };
 
 use crate::{headset_control::BatteryStatus, icon::IconProvider, notify::Notifier};
-use std::sync::mpsc;
 
 struct AppState {
     tray_icon: TrayIcon,
@@ -45,10 +41,13 @@ struct AppState {
     context_menu: menu::ContextMenu,
     settings: settings::Settings,
     notifier: Option<Notifier>,
+    last_headset: Option<headset_control::Device>,
+}
 
-    last_update: Instant,
-    should_update_icon: bool,
-    update_receiver: Option<mpsc::Receiver<bool>>,
+enum UserEvent {
+    HeadsetUpdated(Option<headset_control::Device>),
+    MenuEvent(MenuEvent),
+    UpdateAvailable(bool),
 }
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -66,9 +65,29 @@ pub fn run() -> anyhow::Result<()> {
         warn!("Failed to set efficiency mode: {:?}", err);
     }
 
-    let event_loop = EventLoop::new().context("Error initializing event loop")?;
+    let event_loop = EventLoop::<UserEvent>::with_user_event()
+        .build()
+        .context("Error initializing event loop")?;
 
     let mut app = AppState::init()?;
+
+    let menu_proxy = event_loop.create_proxy();
+    MenuEvent::set_event_handler(Some(move |event| {
+        let _ = menu_proxy.send_event(UserEvent::MenuEvent(event));
+    }));
+
+    let update_proxy = event_loop.create_proxy();
+    std::thread::spawn(move || match version_check::check_for_updates(VERSION) {
+        Ok(has_update) => {
+            let _ = update_proxy.send_event(UserEvent::UpdateAvailable(has_update));
+        }
+        Err(err) => {
+            error!("Failed to check for updates: {:?}", err);
+        }
+    });
+
+    let headsetcontrol_proxy = event_loop.create_proxy();
+    spawn_headset_poll_thread(headsetcontrol_proxy, Duration::from_millis(2000));
 
     Ok(event_loop.run_app(&mut app)?)
 }
@@ -101,25 +120,17 @@ impl AppState {
             }
         };
 
-        // Check for updates in the background (non-blocking)
-        let update_receiver = version_check::check_for_updates_async(VERSION);
-
         Ok(Self {
             tray_icon,
             icon_provider,
             context_menu,
             settings,
             notifier,
-
-            last_update: Instant::now(),
-            should_update_icon: true,
-            update_receiver: Some(update_receiver),
+            last_headset: None,
         })
     }
 
-    fn update(&mut self, _event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        let result = headset_control::query_device();
-
+    fn update(&mut self, headset: Option<headset_control::Device>) -> anyhow::Result<()> {
         if self.notifier.is_none() {
             debug!("Notifier not initialized, attempting to initialize..");
             self.notifier = match Notifier::new() {
@@ -131,32 +142,38 @@ impl AppState {
             };
         }
 
-        match result {
+        match &headset {
             None => {
                 if let Some(notifier) = &mut self.notifier {
                     notifier.update(0, BatteryStatus::Unavailable, "");
                 }
-
-                self.tray_icon
-                    .set_tooltip(Some(lang::t(no_headset_found)))?;
-                match self.icon_provider.get_icon(
-                    system_theme(),
-                    0,
-                    BatteryStatus::Unavailable,
-                    self.settings,
-                ) {
-                    Ok(icon) => self.tray_icon.set_icon(Some(icon))?,
-                    Err(err) => error!("Failed to load icon: {err:?}"),
-                }
-                Ok(())
             }
             Some(device) => {
-                let battery_level = device.battery.level_percent as isize;
-                let battery_status = device.battery.status;
-                let product_name = device.product_name.to_string();
+                if let Some(notifier) = &mut self.notifier {
+                    notifier.update(
+                        device.battery.level_percent as isize,
+                        device.battery.status,
+                        &device.product_name,
+                    );
+                }
+            }
+        };
+        self.last_headset = headset;
+        if let Err(err) = self.refresh_tray_icon() {
+            error!("Failed to refresh tray icon: {err:?}");
+        }
+
+        Ok(())
+    }
+
+    fn refresh_tray_icon(&mut self) -> anyhow::Result<()> {
+        match &self.last_headset {
+            Some(headset) => {
+                let battery_level = headset.battery.level_percent as isize;
+                let battery_status = headset.battery.status;
                 let tooltip_text = format!(
                     "{}{}",
-                    device,
+                    headset,
                     if cfg!(debug_assertions) {
                         " (Debug)"
                     } else {
@@ -164,13 +181,7 @@ impl AppState {
                     }
                 );
 
-                if let Some(notifier) = &mut self.notifier {
-                    notifier.update(battery_level, battery_status, &product_name);
-                }
-
-                self.tray_icon
-                    .set_tooltip(Some(&tooltip_text))
-                    .with_context(|| format!("setting tooltip text: {tooltip_text}"))?;
+                self.tray_icon.set_tooltip(Some(tooltip_text))?;
 
                 match self.icon_provider.get_icon(
                     system_theme(),
@@ -181,115 +192,29 @@ impl AppState {
                     Ok(icon) => self.tray_icon.set_icon(Some(icon))?,
                     Err(err) => error!("Failed to load icon: {err:?}"),
                 }
+            }
+            None => {
+                self.tray_icon
+                    .set_tooltip(Some(lang::t(no_headset_found)))?;
 
-                self.should_update_icon = false;
-
-                Ok(())
+                match self.icon_provider.get_icon(
+                    system_theme(),
+                    0,
+                    BatteryStatus::Unavailable,
+                    self.settings,
+                ) {
+                    Ok(icon) => self.tray_icon.set_icon(Some(icon))?,
+                    Err(err) => error!("Failed to load icon: {err:?}"),
+                }
             }
         }
+        Ok(())
     }
 }
 
-impl ApplicationHandler<()> for AppState {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        // Kick off polling every 1 second
-        event_loop.set_control_flow(ControlFlow::WaitUntil(
-            Instant::now() + Duration::from_secs(1),
-        ));
-    }
-    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
-        if let StartCause::ResumeTimeReached { .. } = cause {
-            // Overwrite the current polling time
-            //
-            // If not overwritten, it starts polling multiple times a second
-            // since the timer is already elapsed.
-            event_loop.set_control_flow(ControlFlow::WaitUntil(
-                Instant::now() + Duration::from_secs(1),
-            ));
-        }
-    }
+impl ApplicationHandler<UserEvent> for AppState {
+    fn resumed(&mut self, _: &winit::event_loop::ActiveEventLoop) {}
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        // Check if update check has completed (non-blocking)
-        if let Some(receiver) = &self.update_receiver
-            && let Ok(has_update) = receiver.try_recv()
-        {
-            self.update_receiver = None; // Stop checking
-
-            if has_update && let Err(e) = self.context_menu.show_update_available() {
-                error!("Failed to show update menu item: {e:?}");
-            }
-        }
-
-        // This will be called at least every second
-        if self.last_update.elapsed() > Duration::from_millis(1000) {
-            if let Err(e) = self.update(event_loop) {
-                error!("Failed to update status: {e:?}");
-            };
-            self.last_update = Instant::now();
-        }
-        if let Ok(event) = MenuEvent::receiver().try_recv() {
-            let context_menu = &mut self.context_menu;
-            match event.id {
-                id if id == context_menu.menu_enable_notifications.id() => {
-                    self.settings.notifications_enabled = !self.settings.notifications_enabled;
-                    context_menu
-                        .menu_enable_notifications
-                        .set_checked(self.settings.notifications_enabled);
-                    if let Err(e) = self.settings.save() {
-                        error!("Failed to save settings: {e:?}");
-                    }
-
-                    if self.settings.notifications_enabled {
-                        let msg = lang::t(notifications_enabled_message);
-
-                        if let Some(notifier) = &mut self.notifier
-                            && let Err(err) =
-                                notifier.show_notification("Headset Battery Indicator", msg)
-                        {
-                            error!("Failed to show notification: {:?}", err);
-                        }
-                    }
-                }
-
-                id if [
-                    context_menu.icon_image.id(),
-                    context_menu.icon_text_gdi.id(),
-                    context_menu.icon_text_bitmap.id(),
-                ]
-                .contains(&&id) =>
-                {
-                    self.settings.icon_type = if id == *context_menu.icon_image.id() {
-                        settings::IconType::Image
-                    } else if id == *context_menu.icon_text_gdi.id() {
-                        settings::IconType::TextGdi
-                    } else {
-                        settings::IconType::TextBitmap
-                    };
-                    context_menu.set_icon_type(self.settings.icon_type);
-
-                    _ = self.update(event_loop);
-
-                    if let Err(e) = self.settings.save() {
-                        error!("Failed to save settings: {e:?}");
-                    }
-                }
-
-                id if id == self.context_menu.menu_trigger_notification.id() => {
-                    #[cfg(debug_assertions)]
-                    {
-                        if let Some(notifier) = &mut self.notifier {
-                            notifier
-                                .show_notification("Test Device", "Battery low (50%)")
-                                .expect("Sending test notification");
-                        }
-                    }
-                }
-
-                _ => self.context_menu.handle_event(event, event_loop),
-            }
-        }
-    }
     fn window_event(
         &mut self,
         _event_loop: &ActiveEventLoop,
@@ -299,9 +224,101 @@ impl ApplicationHandler<()> for AppState {
         // Since we don't have a window attached, this will never be called
     }
 
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
+        match event {
+            UserEvent::MenuEvent(event) => {
+                let context_menu = &mut self.context_menu;
+                match event.id {
+                    id if id == context_menu.menu_enable_notifications.id() => {
+                        self.settings.notifications_enabled = !self.settings.notifications_enabled;
+                        context_menu
+                            .menu_enable_notifications
+                            .set_checked(self.settings.notifications_enabled);
+                        if let Err(e) = self.settings.save() {
+                            error!("Failed to save settings: {e:?}");
+                        }
+
+                        if self.settings.notifications_enabled {
+                            let msg = lang::t(notifications_enabled_message);
+
+                            if let Some(notifier) = &mut self.notifier
+                                && let Err(err) =
+                                    notifier.show_notification("Headset Battery Indicator", msg)
+                            {
+                                error!("Failed to show notification: {:?}", err);
+                            }
+                        }
+                    }
+
+                    id if [
+                        context_menu.icon_image.id(),
+                        context_menu.icon_text_gdi.id(),
+                        context_menu.icon_text_bitmap.id(),
+                    ]
+                    .contains(&&id) =>
+                    {
+                        self.settings.icon_type = if id == *context_menu.icon_image.id() {
+                            settings::IconType::Image
+                        } else if id == *context_menu.icon_text_gdi.id() {
+                            settings::IconType::TextGdi
+                        } else {
+                            settings::IconType::TextBitmap
+                        };
+                        context_menu.set_icon_type(self.settings.icon_type);
+                        self.refresh_tray_icon().unwrap_or_else(|err| {
+                            error!("Failed to refresh tray icon: {:?}", err);
+                        });
+
+                        if let Err(e) = self.settings.save() {
+                            error!("Failed to save settings: {e:?}");
+                        }
+                    }
+
+                    id if id == self.context_menu.menu_trigger_notification.id() => {
+                        #[cfg(debug_assertions)]
+                        {
+                            if let Some(notifier) = &mut self.notifier {
+                                notifier
+                                    .show_notification("Test Device", "Battery low (50%)")
+                                    .expect("Sending test notification");
+                            }
+                        }
+                    }
+
+                    _ => self.context_menu.handle_event(event, event_loop),
+                }
+            }
+            UserEvent::HeadsetUpdated(headset) => {
+                if let Err(err) = self.update(headset) {
+                    error!("Failed to update headset state: {:?}", err);
+                }
+            }
+            UserEvent::UpdateAvailable(has_update) => {
+                if has_update && let Err(e) = self.context_menu.show_update_available() {
+                    error!("Failed to show update menu item: {e:?}");
+                }
+            }
+        }
+    }
+
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         info!("Exiting application..");
     }
+}
+
+fn spawn_headset_poll_thread(
+    proxy: winit::event_loop::EventLoopProxy<UserEvent>,
+    interval: Duration,
+) {
+    std::thread::spawn(move || {
+        loop {
+            let device = headset_control::query_device();
+            if proxy.send_event(UserEvent::HeadsetUpdated(device)).is_err() {
+                break; // Event loop closed
+            }
+            thread::sleep(interval);
+        }
+    });
 }
 
 // Enable dark mode support on Windows 10/11

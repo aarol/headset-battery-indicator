@@ -1,35 +1,14 @@
-use log::{debug, info, warn};
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::thread;
+use log::{debug, info};
 
 const GITHUB_API_URL: &str =
     "https://api.github.com/repos/aarol/headset-battery-indicator/releases/latest";
-
-/// Spawns a background thread to check for new versions.
-/// Returns a receiver that will receive true if an update is available.
-/// This does not block the main thread.
-pub fn check_for_updates_async(current_version: &'static str) -> Receiver<bool> {
-    let (tx, rx): (Sender<bool>, Receiver<bool>) = mpsc::channel();
-
-    thread::spawn(move || match check_for_updates(current_version) {
-        Ok(update_available) => {
-            let _ = tx.send(update_available);
-        }
-        Err(e) => {
-            warn!("Failed to check for updates: {e}");
-            let _ = tx.send(false);
-        }
-    });
-
-    rx
-}
 
 #[derive(serde_derive::Deserialize)]
 struct GithubRelease {
     tag_name: String,
 }
 
-fn check_for_updates(current_version: &str) -> Result<bool, Box<dyn std::error::Error>> {
+pub fn check_for_updates(current_version: &str) -> Result<bool, Box<dyn std::error::Error>> {
     debug!("Checking for updates...");
 
     let response: GithubRelease = ureq::get(GITHUB_API_URL)

@@ -7,6 +7,7 @@ use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct HscBattery {
     pub level_percent: c_int,
     pub status: BatteryStatus,
