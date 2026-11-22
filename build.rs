@@ -1,5 +1,7 @@
+use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 extern crate winres;
@@ -57,19 +59,48 @@ fn main() {
     res.compile().unwrap();
 }
 
+/// Fingerprint of the source files under `dir`: their paths, sizes and
+/// modification times. It changes when a submodule is moved to another commit
+/// or a source file is edited. version.h is skipped, as this script writes it.
+fn source_fingerprint(dir: &str) -> String {
+    fn walk(dir: &Path, hasher: &mut DefaultHasher) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
+        };
+        let mut entries: Vec<_> = entries.flatten().collect();
+        entries.sort_by_key(|e| e.path());
+        for entry in entries {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, hasher);
+            } else if path.file_name().is_some_and(|name| name != "version.h") {
+                path.hash(hasher);
+                if let Ok(meta) = entry.metadata() {
+                    meta.len().hash(hasher);
+                    meta.modified().ok().hash(hasher);
+                }
+            }
+        }
+    }
+
+    let mut hasher = DefaultHasher::new();
+    walk(Path::new(dir), &mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
 /// Check if a library needs to be rebuilt
 /// Returns true if the marker file doesn't exist or if any source files changed
-fn needs_rebuild(marker_name: &str) -> bool {
+fn needs_rebuild(marker_name: &str, fingerprint: &str) -> bool {
     let out_dir = env::var("OUT_DIR").unwrap();
     let marker = Path::new(&out_dir).join(marker_name);
-    !marker.exists()
+    fs::read_to_string(marker).map_or(true, |built| built != fingerprint)
 }
 
 /// Mark a library as successfully built
-fn mark_built(marker_name: &str) {
+fn mark_built(marker_name: &str, fingerprint: &str) {
     let out_dir = env::var("OUT_DIR").unwrap();
     let marker = Path::new(&out_dir).join(marker_name);
-    fs::write(marker, "").expect("Failed to write marker file");
+    fs::write(marker, fingerprint).expect("Failed to write marker file");
 }
 
 /// Build the hidapi library for Windows HID device access
@@ -82,7 +113,8 @@ fn build_hidapi() {
     let out_dir = env::var("OUT_DIR").unwrap();
 
     // Skip build if library already exists and source hasn't changed
-    if !needs_rebuild("hidapi.built") {
+    let fingerprint = source_fingerprint("vendor/hidapi/windows");
+    if !needs_rebuild("hidapi.built", &fingerprint) {
         println!("cargo:warning=Skipping hidapi build (already cached)");
         // Ensure cargo knows where to find the library
         println!("cargo:rustc-link-search=native={}", out_dir);
@@ -99,7 +131,7 @@ fn build_hidapi() {
         .warnings(false)
         .compile("hidapi");
 
-    mark_built("hidapi.built");
+    mark_built("hidapi.built", &fingerprint);
 
     // Link Windows system libraries required by hidapi
     println!("cargo:rustc-link-lib=setupapi");
@@ -120,8 +152,12 @@ fn build_headsetcontrol() {
 
     let out_dir = env::var("OUT_DIR").unwrap();
 
+    // ProcessLock (lib/utility.cpp) builds the DACL of its named mutex with advapi32
+    println!("cargo:rustc-link-lib=advapi32");
+
     // Skip build if library already exists and source hasn't changed
-    if !needs_rebuild("headsetcontrol.built") {
+    let fingerprint = source_fingerprint("vendor/headsetcontrol/lib");
+    if !needs_rebuild("headsetcontrol.built", &fingerprint) {
         println!("cargo:warning=Skipping headsetcontrol build (already cached)");
         // Ensure cargo knows where to find the library
         println!("cargo:rustc-link-search=native={}", out_dir);
@@ -158,7 +194,8 @@ fn build_headsetcontrol() {
         .file("vendor/headsetcontrol/lib/hid_utility.cpp")
         .file("vendor/headsetcontrol/lib/result_types.cpp")
         .file("vendor/headsetcontrol/lib/utility.cpp")
-        .file("vendor/headsetcontrol/lib/devices/hid_device.cpp");
+        .file("vendor/headsetcontrol/lib/devices/hid_device.cpp")
+        .file("vendor/headsetcontrol/lib/devices/serial_interface.cpp");
 
     // MSVC-specific configuration for minimal binary size
     if build.get_compiler().is_like_msvc() {
@@ -176,7 +213,7 @@ fn build_headsetcontrol() {
         build.compile("headsetcontrol");
     }
 
-    mark_built("headsetcontrol.built");
+    mark_built("headsetcontrol.built", &fingerprint);
 
     // Link hidapi library
     println!("cargo:rustc-link-lib=static=hidapi");
