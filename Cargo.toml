@@ -1,6 +1,6 @@
 [package]
 name = "headset-battery-indicator"
-version = "3.8.0" # remember to update installer.iss as well!
+version = "3.9.0" # remember to update installer.iss as well!
 edition = "2024"
 authors = ["Aaro Luomanen"]
 description = "Displays a battery icon in the Windows system tray for wireless headsets."
