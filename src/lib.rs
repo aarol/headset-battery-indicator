@@ -229,10 +229,11 @@ impl ApplicationHandler<()> for AppState {
             self.last_update = Instant::now();
         }
         if let Ok(event) = MenuEvent::receiver().try_recv() {
+            let context_menu = &mut self.context_menu;
             match event.id {
-                id if id == self.context_menu.menu_enable_notifications.id() => {
+                id if id == context_menu.menu_enable_notifications.id() => {
                     self.settings.notifications_enabled = !self.settings.notifications_enabled;
-                    self.context_menu
+                    context_menu
                         .menu_enable_notifications
                         .set_checked(self.settings.notifications_enabled);
                     if let Err(e) = self.settings.save() {
@@ -251,11 +252,21 @@ impl ApplicationHandler<()> for AppState {
                     }
                 }
 
-                id if id == self.context_menu.menu_show_text_icon.id() => {
-                    self.settings.use_number_icon = !self.settings.use_number_icon;
-                    self.context_menu
-                        .menu_show_text_icon
-                        .set_checked(self.settings.use_number_icon);
+                id if [
+                    context_menu.icon_image.id(),
+                    context_menu.icon_text_gdi.id(),
+                    context_menu.icon_text_bitmap.id(),
+                ]
+                .contains(&&id) =>
+                {
+                    self.settings.icon_type = if id == *context_menu.icon_image.id() {
+                        settings::IconType::Image
+                    } else if id == *context_menu.icon_text_gdi.id() {
+                        settings::IconType::TextGdi
+                    } else {
+                        settings::IconType::TextBitmap
+                    };
+                    context_menu.set_icon_type(self.settings.icon_type);
 
                     _ = self.update(event_loop);
 

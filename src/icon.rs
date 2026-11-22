@@ -41,24 +41,30 @@ impl IconProvider {
 
         log::trace!("Re-render icon");
 
-        let icon = if settings.use_number_icon {
-            if let Some(renderer) = &mut self.text_renderer {
-                let text = match state {
-                    BatteryStatus::Unavailable => "--",
-                    _ => &battery_percent.min(99).to_string(), // Don't show 100 as it would overflow
-                };
+        let icon = match settings.icon_type {
+            crate::settings::IconType::Image => {
+                let res_id = battery_res_id_for(theme, battery_percent, state);
 
-                renderer
-                    .render(text, theme)
-                    .or_else(|_| fallback::generate_number_icon(theme, battery_percent, state))?
-            } else {
+                tray_icon::Icon::from_resource(res_id, None)
+                    .with_context(|| format!("loading icon from resource {res_id}"))?
+            }
+            crate::settings::IconType::TextGdi => {
+                if let Some(renderer) = &mut self.text_renderer {
+                    let text = match state {
+                        BatteryStatus::Unavailable => "--",
+                        _ => &battery_percent.min(99).to_string(), // Don't show 100 as it would overflow
+                    };
+
+                    renderer.render(text, theme).or_else(|_| {
+                        fallback::generate_number_icon(theme, battery_percent, state)
+                    })?
+                } else {
+                    fallback::generate_number_icon(theme, battery_percent, state)?
+                }
+            }
+            crate::settings::IconType::TextBitmap => {
                 fallback::generate_number_icon(theme, battery_percent, state)?
             }
-        } else {
-            let res_id = battery_res_id_for(theme, battery_percent, state);
-
-            tray_icon::Icon::from_resource(res_id, None)
-                .with_context(|| format!("loading icon from resource {res_id}"))?
         };
 
         self.icon_cache = Some((icon.clone(), (settings, theme, battery_percent, state)));

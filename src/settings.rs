@@ -1,5 +1,45 @@
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum IconType {
+    Image,
+    TextGdi,
+    TextBitmap,
+}
+
+impl Serialize for IconType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            IconType::Image => "image",
+            IconType::TextGdi => "text_gdi",
+            IconType::TextBitmap => "text_bitmap",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for IconType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            "image" => Ok(IconType::Image),
+            "text_gdi" => Ok(IconType::TextGdi),
+            "text_bitmap" => Ok(IconType::TextBitmap),
+            _ => Err(serde::de::Error::custom(format!(
+                "Invalid icon type: {}",
+                s
+            ))),
+        }
+    }
+}
 
 // This struct is parsed from either registry settings or headset-battery-indicator-settings.toml if in portable mode.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq)]
@@ -9,6 +49,8 @@ pub struct Settings {
     pub notifications_enabled: bool,
     #[serde(rename = "UseNumberIcon")]
     pub use_number_icon: bool,
+    #[serde(rename = "IconType")]
+    pub icon_type: IconType,
 }
 
 impl Default for Settings {
@@ -16,6 +58,7 @@ impl Default for Settings {
         Settings {
             notifications_enabled: true,
             use_number_icon: false,
+            icon_type: IconType::Image,
         }
     }
 }
@@ -35,9 +78,16 @@ impl Settings {
         let settings_path = Self::settings_file_path()?;
 
         if settings_path.exists() {
-            let settings: Settings = toml::from_str(&std::fs::read_to_string(&settings_path)?)
+            let mut settings: Settings = toml::from_str(&std::fs::read_to_string(&settings_path)?)
                 .with_context(|| format!("parsing settings file at {:?}", settings_path))?;
             log::debug!("Loaded settings from file: {:?}", settings);
+
+            if settings.use_number_icon {
+                // Legacy setting, override icon_type
+                settings.icon_type = IconType::TextGdi;
+                settings.use_number_icon = false;
+            }
+
             Ok(settings)
         } else {
             log::debug!(
@@ -67,8 +117,13 @@ impl Settings {
             .create_subkey("Software\\HeadsetBatteryIndicator")
             .context("accessing registry key")?;
 
-        let settings: Settings = key.decode().context("decoding registry values")?;
+        let mut settings: Settings = key.decode().context("decoding registry values")?;
 
+        if settings.use_number_icon {
+            // Legacy setting, override icon_type
+            settings.icon_type = IconType::TextGdi;
+            settings.use_number_icon = false;
+        }
         log::debug!("Loaded settings: {:?}", settings);
         Ok(settings)
     }

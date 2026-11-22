@@ -29,6 +29,7 @@ Adds a small icon to the Windows task bar, displaying the battery level of conne
   > ```toml
   > NotificationsEnabled = true
   > UseNumberIcon = false
+  > IconType = "Image" # Possible values: "Image", "TextGdi", "TextBitmap"
   > ```
 
 Headset Battery Indicator depends on [HeadsetControl](https://github.com/Sapd/HeadsetControl), which is licensed under GPL v3.
@@ -98,6 +99,12 @@ There are translations for the following languages:
 * Chinese
 
 Translations can be added to the [lang.rs](./src/lang.rs) file.
+
+> [!NOTE]
+> All translations have been initially added by contributors, but some of the new translations have been machine translated.
+> If you notice a translation that is incorrect, you can submit a pull request to fix it.
+>
+> You don't have to be a developer, you can [edit src/lang.rs directly via GitHub](https://docs.github.com/en/repositories/working-with-files/managing-files/editing-files#editing-files-in-another-users-repository) and submit a pull request.
 
 ## Adding a new headset
 

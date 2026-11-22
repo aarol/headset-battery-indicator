@@ -4,17 +4,19 @@ use std::fmt::Debug;
 use anyhow::Context;
 use log::error;
 use tray_icon::menu::MenuEvent;
-use tray_icon::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tray_icon::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, SubmenuBuilder};
 use winit::event_loop;
 
 use crate::lang;
-use crate::lang::Key::*;
-use crate::settings::Settings;
+use crate::lang::Key;
+use crate::settings::{IconType, Settings};
 
 pub struct ContextMenu {
     pub menu: Menu,
     pub menu_enable_notifications: CheckMenuItem,
-    pub menu_show_text_icon: CheckMenuItem,
+    pub icon_image: CheckMenuItem,
+    pub icon_text_gdi: CheckMenuItem,
+    pub icon_text_bitmap: CheckMenuItem,
     menu_logs: MenuItem,
     menu_close: MenuItem,
     pub menu_trigger_notification: MenuItem,
@@ -26,40 +28,59 @@ impl ContextMenu {
         let menu = Menu::new();
 
         menu.append(&MenuItem::new(
-            format!("{} v{}", lang::t(version), crate::VERSION),
+            format!("{} v{}", lang::t(Key::version), crate::VERSION),
             false,
             None,
         ))?;
 
         let menu_notifications = CheckMenuItem::new(
-            lang::t(show_notifications),
+            lang::t(Key::show_notifications),
             true,
             settings.notifications_enabled,
             None,
         );
 
-        let menu_show_text_icon = CheckMenuItem::new(
-            lang::t(show_text_icon),
+        let icon_image = CheckMenuItem::new(
+            lang::t(Key::icon_submenu_image),
             true,
-            settings.use_number_icon,
+            matches!(settings.icon_type, IconType::Image),
+            None,
+        );
+        let icon_text_gdi = CheckMenuItem::new(
+            lang::t(Key::icon_submenu_text_gdi),
+            true,
+            matches!(settings.icon_type, IconType::TextGdi),
+            None,
+        );
+        let icon_text_bitmap = CheckMenuItem::new(
+            lang::t(Key::icon_submenu_text_bitmap),
+            true,
+            matches!(settings.icon_type, IconType::TextBitmap),
             None,
         );
 
-        let menu_logs = MenuItem::new(lang::t(view_logs), true, None);
-        let menu_close = MenuItem::new(lang::t(quit_program), true, None);
+        let icon_submenu = SubmenuBuilder::new()
+            .text(lang::t(Key::icon_submenu))
+            .items(&[&icon_image, &icon_text_gdi, &icon_text_bitmap])
+            .build()?;
+
+        let menu_logs = MenuItem::new(lang::t(Key::view_logs), true, None);
+        let menu_close = MenuItem::new(lang::t(Key::quit_program), true, None);
         let menu_trigger_notification = MenuItem::new("Trigger Test Notification", true, None);
 
         #[cfg(debug_assertions)]
         menu.append(&menu_trigger_notification)?;
 
-        menu.append_items(&[&menu_notifications, &menu_show_text_icon, &menu_logs])?;
+        menu.append_items(&[&menu_notifications, &icon_submenu, &menu_logs])?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&menu_close)?;
 
         Ok(Self {
             menu,
             menu_enable_notifications: menu_notifications,
-            menu_show_text_icon,
+            icon_image,
+            icon_text_gdi,
+            icon_text_bitmap,
             menu_logs,
             menu_close,
             menu_trigger_notification,
@@ -73,7 +94,7 @@ impl ContextMenu {
             return Ok(()); // Already showing
         }
 
-        let update_text = format!("❗ {}", lang::t(update_available));
+        let update_text = format!("❗ {}", lang::t(Key::update_available));
         let menu_item = MenuItem::new(update_text, true, None);
 
         // Insert at position 1 (after version item)
@@ -81,6 +102,15 @@ impl ContextMenu {
         self.menu_update_available = Some(menu_item);
 
         Ok(())
+    }
+
+    pub fn set_icon_type(&mut self, icon_type: IconType) {
+        self.icon_image
+            .set_checked(matches!(icon_type, IconType::Image));
+        self.icon_text_gdi
+            .set_checked(matches!(icon_type, IconType::TextGdi));
+        self.icon_text_bitmap
+            .set_checked(matches!(icon_type, IconType::TextBitmap));
     }
 
     pub fn handle_event(&mut self, event: MenuEvent, event_loop: &event_loop::ActiveEventLoop) {
