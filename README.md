@@ -7,7 +7,7 @@ Adds a small icon to the Windows task bar, displaying the battery level of conne
 ## Features
 
 * Works on Windows 10+
-* Built using Rust, with low resource usage (~2MB RAM)
+* Built using Rust, with low resource usage (~1.2MB RAM)
 * Supports most non-bluetooth headsets (SteelSeries, Logitech, Corsair, HyperX)
   * See all [supported headsets here](https://github.com/Sapd/HeadsetControl?tab=readme-ov-file#supported-headsets).
   
